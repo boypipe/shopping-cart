@@ -415,10 +415,6 @@ function removeOption(gid, oid) {
   renderCompare();
 }
 
-function parseQtyUnit(str) {
-  const m = (str || '').trim().match(/^([\d.]+)\s*([a-zA-Z]*)/);
-  return m ? { qty: parseFloat(m[1]), unit: m[2] || 'unit' } : { qty: NaN, unit: 'unit' };
-}
 
 function computeGroup(gid) {
   const g = cmpGroups.find(g => g.id === gid);
@@ -426,7 +422,8 @@ function computeGroup(gid) {
   // Read current DOM values
   const vals = g.options.map(o => {
     const price = parseFloat((document.getElementById('cp-' + o.id) || {}).value || '');
-    const { qty, unit } = parseQtyUnit((document.getElementById('cq-' + o.id) || {}).value || '');
+    const qty = parseFloat(  (document.getElementById('cq-' + o.id) || {}).value || '');
+    const unit = 'unit';
     const ppu = (isNaN(price) || isNaN(qty) || qty <= 0) ? NaN : price / qty;
     return { id: o.id, price, qty, unit, ppu };
   });
@@ -492,7 +489,7 @@ function renderCompare() {
   container.innerHTML = cmpGroups.map((g, gi) => {
     const optCols = g.options.map((o, oi) => `<th id="cth-${o.id}">O${oi + 1}${g.options.length > 2 ? `<button onclick="removeOption(${g.id},${o.id})" style="margin-left:6px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;" title="Remove">✕</button>` : ''}</th>`).join('');
     const priceRow = g.options.map(o => `<td id="ctdP-${o.id}"><input  id="cp-${o.id}"  type="number"  value="${o.price || ''}" placeholder="$0.00" min="0" step="0.01" oninput="computeGroup(${g.id})"></td>`).join('');
-    const qtyRow   = g.options.map(o => `<td id="ctdQ-${o.id}"><input  id="cq-${o.id}"  type="text"  value="${o.qtyunit || ''}" placeholder="e.g. 500g" oninput="computeGroup(${g.id})"></td>`).join('');
+    const qtyRow = g.options.map(o =>  `<td id="ctdQ-${o.id}">    <input id="cq-${o.id}" type="number" value="${o.qtyunit || ''}" placeholder="Qty" min="0" step="0.01" oninput="computeGroup(${g.id})">  </td>`).join('');
     const resRow   = g.options.map(o => `<td id="ctdR-${o.id}"><span id="cru-${o.id}" class="per-unit">—</span></td>`).join('');
 
     return `<div class="cmp-group">
