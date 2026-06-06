@@ -527,5 +527,16 @@ render();
 renderCompare();
 addCmpGroup();
 </script>
+ <div style="text-align:center;margin-top:20px;font-size:12px;color:#888;">
+  👁️ Views: <span id="views">...</span>
+</div>
+
+<script>
+fetch('https://api.countapi.xyz/hit/james-cart-calculator/views')
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById('views').textContent = data.value;
+  });
+</script>
 </body>
 </html>
