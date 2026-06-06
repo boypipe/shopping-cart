@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cart Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F5F0; --surface: #FFFFFF; --surface2: #F0EDE6;
+    --border: #E0DDD6; --border2: #C8C4BC;
+    --text: #1A1916; --text2: #6B6860; --text3: #9E9B94;
+    --accent: #2D6A4F; --accent-bg: #E8F5EF; --accent-text: #1A4731;
+    --danger: #C0392B; --danger-bg: #FDECEA; --danger-text: #7B2319;
+    --warn-bg: #FEF3E2; --warn-text: #7A4D0E;
+    --blue: #1E40AF; --blue-bg: #DBEAFE; --blue-light: #EFF6FF;
+    --pink: #9D174D; --pink-bg: #FCE7F3; --pink-light: #FDF2F8;
+    --mono: 'DM Mono', monospace; --sans: 'Sora', sans-serif;
+    --r: 10px; --r-sm: 6px;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 80px; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px 14px; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+  header p { font-size: 12px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 20px; }
+  .tab { flex: 1; padding: 12px 0; font-size: 13px; font-weight: 500; color: var(--text3); border: none; background: none; border-bottom: 2px solid transparent; cursor: pointer; transition: color 0.15s, border-color 0.15s; font-family: var(--sans); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .panel { display: none; padding: 16px 20px; }
+  .panel.active { display: block; }
+
+  /* ── Budget & Total ── */
+  .budget-row { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; margin-bottom: 14px; }
+  .budget-row label { font-size: 12px; font-weight: 500; color: var(--text2); white-space: nowrap; }
+  .budget-row input { flex: 1; border: none; background: none; font-family: var(--mono); font-size: 15px; color: var(--text); outline: none; text-align: right; min-width: 0; }
+  .budget-row input::placeholder { color: var(--text3); }
+
+  .total-card { border-radius: var(--r); padding: 14px 16px; margin-bottom: 14px; border: 1px solid var(--border); background: var(--surface); transition: background 0.2s, border-color 0.2s; }
+  .total-card.over { background: var(--danger-bg); border-color: #F5B5AF; }
+  .total-card.ok   { background: var(--accent-bg); border-color: #A8D8C0; }
+  .total-label { font-size: 11px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+  .total-amount { font-family: var(--mono); font-size: 32px; font-weight: 500; color: var(--text); line-height: 1; transition: color 0.2s; }
+  .total-card.over .total-amount { color: var(--danger); }
+  .total-card.ok   .total-amount { color: var(--accent); }
+  .total-sub { font-size: 12px; color: var(--text3); margin-top: 4px; font-family: var(--mono); }
+  .total-card.over .total-sub { color: var(--danger-text); }
+  .total-card.ok   .total-sub { color: var(--accent-text); }
+
+  .suggestion-box { background: var(--warn-bg); border: 1px solid #F5D78E; border-radius: var(--r); padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: var(--warn-text); display: none; line-height: 1.6; }
+  .suggestion-box.visible { display: block; }
+  .suggestion-box strong { font-weight: 600; }
+
+  /* ── Item rows ── */
+  .items-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .item-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); transition: background 0.2s, border-color 0.2s; animation: slideIn 0.18s ease; overflow: hidden; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .item-row.highlight-remove { background: var(--danger-bg); border-color: #F5B5AF; }
+  .item-row.highlight-remove .item-name { color: var(--danger-text); }
+
+  .item-main { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+  .item-emoji { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
+  .item-name { flex: 1; font-size: 14px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item-qty { font-size: 12px; color: var(--text3); font-family: var(--mono); flex-shrink: 0; }
+  .item-price { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--text2); flex-shrink: 0; }
+  .item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .icon-btn { background: none; border: none; color: var(--text3); cursor: pointer; padding: 3px 5px; font-size: 14px; line-height: 1; border-radius: var(--r-sm); transition: color 0.15s, background 0.15s; }
+  .icon-btn:hover { background: var(--surface2); color: var(--text); }
+  .icon-btn.del:hover { color: var(--danger); background: var(--danger-bg); }
+
+  .item-edit { display: none; border-top: 1px solid var(--border); padding: 10px 12px; background: var(--surface2); gap: 6px; flex-direction: column; }
+  .item-edit.open { display: flex; }
+  .edit-row { display: grid; grid-template-columns: 1fr 90px 58px; gap: 6px; }
+  .edit-input { font-family: var(--sans); font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 8px; outline: none; width: 100%; }
+  .edit-input:focus { border-color: var(--accent); }
+  .edit-input.mono { font-family: var(--mono); }
+  .edit-emoji-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .edit-eq { font-size: 16px; padding: 3px 5px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); cursor: pointer; }
+  .edit-eq.sel { outline: 2px solid var(--accent); }
+  .save-btn { background: var(--accent); color: #fff; border: none; border-radius: var(--r-sm); padding: 7px 12px; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 2px; }
+
+  /* ── Add form ── */
+  .add-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; }
+  .add-form-title { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  /* Name short | Price big | Qty last small */
+  .form-row { display: grid; grid-template-columns: 88px 1fr 58px; gap: 8px; align-items: center; }
+  .form-input { font-family: var(--sans); font-size: 14px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 9px 10px; outline: none; transition: border-color 0.15s; width: 100%; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text3); font-size: 12px; }
+  .form-input.mono { font-family: var(--mono); }
+  .form-input.price-big { font-size: 18px; font-family: var(--mono); font-weight: 500; padding: 9px 10px; }
+  .quick-emoji { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .eq-btn { font-size: 18px; padding: 4px 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); cursor: pointer; transition: background 0.15s; }
+  .eq-btn:hover { background: var(--border); }
+  .eq-btn.sel { outline: 2px solid var(--accent); }
+  .add-btn { background: var(--accent); color: #fff; border: none; border-radius: var(--r-sm); padding: 9px 0; font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; width: 100%; margin-top: 10px; }
+  .add-btn:active { opacity: 0.8; }
+
+  /* ── Compare — table layout ── */
+  .cmp-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 14px; overflow: hidden; }
+  .cmp-group-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .cmp-group-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .cmp-del-group-btn { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; padding: 0 2px; line-height: 1; }
+  .cmp-del-group-btn:hover { color: var(--danger); }
+
+  /* horizontal scroll table */
+  .cmp-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .cmp-table { border-collapse: collapse; min-width: 100%; }
+  .cmp-table th, .cmp-table td { padding: 8px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  .cmp-table th { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; background: var(--surface); }
+  .cmp-table td { font-size: 13px; color: var(--text2); background: var(--surface); }
+  .cmp-table td.label-col { color: var(--text3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; background: var(--surface2); white-space: nowrap; }
+  .cmp-table input { font-family: var(--mono); font-size: 13px; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 8px; outline: none; width: 90px; }
+  .cmp-table input:focus { border-color: var(--accent); background: var(--surface); }
+  .cmp-table input::placeholder { color: var(--text3); }
+
+  /* winner column highlight */
+  .cmp-table td.col-win { background: var(--blue-light); }
+  .cmp-table td.col-win .per-unit { color: var(--blue); }
+  .cmp-table th.col-win { background: var(--blue-bg); color: var(--blue); }
+
+  .per-unit { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text2); }
+  .per-unit.best { color: var(--blue); font-weight: 600; }
+
+  .winner-row td { background: var(--blue-bg) !important; }
+  .winner-badge-inline { font-size: 12px; font-weight: 600; color: var(--blue); }
+
+  .cmp-footer { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); background: var(--surface2); }
+  .add-option-btn { background: none; border: 1px dashed var(--border2); border-radius: var(--r-sm); padding: 6px 12px; font-family: var(--sans); font-size: 12px; color: var(--text3); cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+  .add-option-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .winner-label { font-size: 12px; color: var(--text3); font-family: var(--mono); }
+  .winner-label span { color: var(--blue); font-weight: 600; }
+
+  .add-cmp-btn { display: block; width: 100%; background: none; border: 1px dashed var(--border2); border-radius: var(--r); padding: 12px; font-family: var(--sans); font-size: 13px; color: var(--text3); cursor: pointer; margin-bottom: 14px; transition: background 0.15s, color 0.15s; }
+  .add-cmp-btn:hover { background: var(--surface); color: var(--accent); border-color: var(--accent); }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 14px; }
+  .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 Cart Calculator</h1>
+  <p>Auto-updates as you add items</p>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('cart', this)">My Cart</button>
+  <button class="tab" onclick="switchTab('compare', this)">Compare</button>
+</div>
+
+<!-- CART PANEL -->
+<div id="panel-cart" class="panel active">
+  <div class="budget-row">
+    <label>Budget $</label>
+    <input type="number" id="budget" placeholder="0.00" min="0" step="0.01" oninput="render()">
+  </div>
+  <div class="total-card" id="total-card">
+    <div class="total-label">Total</div>
+    <div class="total-amount" id="total-amount">$0.00</div>
+    <div class="total-sub" id="total-sub">0 items · add something below</div>
+  </div>
+  <div class="suggestion-box" id="suggestion-box"></div>
+  <div class="items-list" id="items-list"></div>
+
+  <div class="add-form">
+    <div class="add-form-title">Add item</div>
+    <!-- Name (short) | Price (big) | Qty (last, small) -->
+    <div class="form-row">
+      <input class="form-input" id="item-name" type="text" placeholder="Name" maxlength="20" onkeydown="handleKey(event)">
+      <input class="form-input price-big mono" id="item-price" type="number" placeholder="$0.00" min="0" step="0.01" onkeydown="handleKey(event)">
+      <input class="form-input mono" id="item-qty" type="number" placeholder="Qty" min="1" step="1" value="1" onkeydown="handleKey(event)">
+    </div>
+    <div class="quick-emoji">
+      <span style="font-size:11px;color:var(--text3);line-height:2.2;margin-right:2px;">emoji:</span>
+      <button class="eq-btn sel" onclick="setEmoji('🛒',this)">🛒</button>
+      <button class="eq-btn" onclick="setEmoji('🥩',this)">🥩</button>
+      <button class="eq-btn" onclick="setEmoji('🥦',this)">🥦</button>
+      <button class="eq-btn" onclick="setEmoji('🥛',this)">🥛</button>
+      <button class="eq-btn" onclick="setEmoji('🍞',this)">🍞</button>
+      <button class="eq-btn" onclick="setEmoji('🧴',this)">🧴</button>
+      <button class="eq-btn" onclick="setEmoji('🍎',this)">🍎</button>
+      <button class="eq-btn" onclick="setEmoji('🧀',this)">🧀</button>
+      <button class="eq-btn" onclick="setEmoji('🥚',this)">🥚</button>
+      <button class="eq-btn" onclick="setEmoji('🍫',this)">🍫</button>
+      <button class="eq-btn" onclick="setEmoji('🌿',this)">🌿</button>
+      <button class="eq-btn" onclick="setEmoji('🥜',this)">🥜</button>
+    </div>
+    <button class="add-btn" onclick="addItem()">+ Add to cart</button>
+  </div>
+</div>
+
+<!-- COMPARE PANEL -->
+<div id="panel-compare" class="panel">
+  <div id="cmp-groups"></div>
+  <button class="add-cmp-btn" onclick="addCmpGroup()">+ New comparison</button>
+</div>
+
+<script>
+/* ════ CART ════ */
+let items = [];
+let selectedEmoji = '🛒';
+let editingId = null;
+const EMOJIS = ['🛒','🥩','🥦','🥛','🍞','🧴','🍎','🧀','🥚','🍫','🌿','🥜'];
+
+function setEmoji(e, btn) {
+  selectedEmoji = e;
+  document.querySelectorAll('.eq-btn').forEach(b => b.classList.remove('sel'));
+  if (btn) btn.classList.add('sel');
+}
+
+function handleKey(ev) { if (ev.key === 'Enter') addItem(); }
+
+function addItem() {
+  const name  = document.getElementById('item-name').value.trim();
+  const price = parseFloat(document.getElementById('item-price').value);
+  const qty   = parseFloat(document.getElementById('item-qty').value) || 1;
+  if (isNaN(price) || price < 0) { document.getElementById('item-price').focus(); return; }
+  items.push({ id: Date.now(), emoji: selectedEmoji, name: name || (selectedEmoji + ' Item'), qty, price });
+  document.getElementById('item-name').value  = '';
+  document.getElementById('item-price').value = '';
+  document.getElementById('item-qty').value   = '1';
+  document.getElementById('item-price').focus();
+  render();
+}
+
+function removeItem(id) {
+  items = items.filter(i => i.id !== id);
+  if (editingId === id) editingId = null;
+  render();
+}
+
+function toggleEdit(id) {
+  editingId = (editingId === id) ? null : id;
+  render();
+}
+
+function saveEdit(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  const nv = document.getElementById('edit-name-' + id).value.trim();
+  const pv = parseFloat(document.getElementById('edit-price-' + id).value);
+  const qv = parseFloat(document.getElementById('edit-qty-' + id).value) || 1;
+  if (isNaN(pv) || pv < 0) return;
+  item.name  = nv || (item.emoji + ' Item');
+  item.price = pv;
+  item.qty   = qv;
+  editingId  = null;
+  render();
+}
+
+function editEmoji(id, e, btn) {
+  const item = items.find(i => i.id === id);
+  if (item) item.emoji = e;
+  document.querySelectorAll('.edit-eq[data-id="' + id + '"]').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  const el = document.getElementById('emoji-disp-' + id);
+  if (el) el.textContent = e;
+}
+
+function getTotal() { return items.reduce((s, i) => s + i.price * i.qty, 0); }
+
+function suggestRemovals(total, budget) {
+  const over = total - budget;
+  if (over <= 0) return [];
+  const lines = items.map(i => ({ id: i.id, line: i.price * i.qty }));
+  const single = lines.filter(i => i.line >= over).sort((a, b) => a.line - b.line);
+  if (single.length > 0) return [single[0].id];
+  const sorted = [...lines].sort((a, b) => a.line - b.line);
+  let acc = 0; const out = [];
+  for (const it of sorted) { if (acc >= over) break; out.push(it.id); acc += it.line; }
+  return out;
+}
+
+function fmt(n) { return '$' + n.toFixed(2); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function render() {
+  const total     = getTotal();
+  const budget    = parseFloat(document.getElementById('budget').value);
+  const hasBudget = !isNaN(budget) && budget > 0;
+
+  const card = document.getElementById('total-card');
+  document.getElementById('total-amount').textContent = fmt(total);
+  let sub = items.length + ' item' + (items.length !== 1 ? 's' : '');
+  card.classList.remove('over','ok');
+  if (hasBudget) {
+    const rem = budget - total;
+    if (rem < 0) { card.classList.add('over'); sub += ' · ' + fmt(Math.abs(rem)) + ' over budget'; }
+    else         { card.classList.add('ok');   sub += ' · ' + fmt(rem) + ' remaining'; }
+  }
+  document.getElementById('total-sub').textContent = sub;
+
+  const suggBox = document.getElementById('suggestion-box');
+  let highlighted = [];
+  if (hasBudget && total > budget) {
+    highlighted = suggestRemovals(total, budget);
+    const names = highlighted.map(id => items.find(i => i.id === id)?.name).filter(Boolean);
+    suggBox.innerHTML = '💡 <strong>Over budget by ' + fmt(total - budget) + '.</strong> Consider removing: ' + names.map(n => '<em>' + escHtml(n) + '</em>').join(', ');
+    suggBox.classList.add('visible');
+  } else {
+    suggBox.classList.remove('visible');
+  }
+
+  const list = document.getElementById('items-list');
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🛍️</div>Your cart is empty.<br>Add an item below.</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(item => {
+    const line = item.price * item.qty;
+    const hi   = highlighted.includes(item.id);
+    const isEd = editingId === item.id;
+    const emojiPicker = EMOJIS.map(e =>
+      `<button class="edit-eq${item.emoji === e ? ' sel' : ''}" data-id="${item.id}" onclick="editEmoji(${item.id},'${e}',this)">${e}</button>`
+    ).join('');
+    return `<div class="item-row${hi ? ' highlight-remove' : ''}">
+      <div class="item-main">
+        <span class="item-emoji" id="emoji-disp-${item.id}">${item.emoji}</span>
+        <span class="item-name">${escHtml(item.name)}</span>
+        <span class="item-qty">×${item.qty}</span>
+        <span class="item-price">${fmt(line)}</span>
+        <div class="item-actions">
+          <button class="icon-btn" onclick="toggleEdit(${item.id})" title="Edit">✏️</button>
+          <button class="icon-btn del" onclick="removeItem(${item.id})" title="Remove">✕</button>
+        </div>
+      </div>
+      <div class="item-edit${isEd ? ' open' : ''}">
+        <div class="edit-emoji-row">${emojiPicker}</div>
+        <div class="edit-row">
+          <input class="edit-input" id="edit-name-${item.id}" type="text" value="${escHtml(item.name)}" placeholder="Name">
+          <input class="edit-input mono" id="edit-price-${item.id}" type="number" value="${item.price}" min="0" step="0.01" placeholder="Price">
+          <input class="edit-input mono" id="edit-qty-${item.id}" type="number" value="${item.qty}" min="1" step="1" placeholder="Qty">
+        </div>
+        <button class="save-btn" onclick="saveEdit(${item.id})">Save changes</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ════ COMPARE ════
+   Each group has multiple options (columns).
+   Data: cmpGroups = [{ id, title, options: [{id, price, qtyunit}] }]
+*/
+let cmpGroups = [];
+let cmpGId = 0;
+let cmpOId = 0;
+
+function addCmpGroup() {
+  const gid = ++cmpGId;
+  const o1  = ++cmpOId;
+  const o2  = ++cmpOId;
+  cmpGroups.push({ id: gid, options: [{ id: o1 }, { id: o2 }] });
+  renderCompare();
+  setTimeout(() => { const el = document.getElementById('cp-' + o1); if (el) el.focus(); }, 60);
+}
+
+function removeCmpGroup(gid) {
+  cmpGroups = cmpGroups.filter(g => g.id !== gid);
+  renderCompare();
+}
+
+function addOption(gid) {
+  const g = cmpGroups.find(g => g.id === gid);
+  if (!g) return;
+  const oid = ++cmpOId;
+  g.options.push({ id: oid });
+  renderCompare();
+  setTimeout(() => { const el = document.getElementById('cp-' + oid); if (el) el.focus(); }, 60);
+}
+
+function removeOption(gid, oid) {
+  const g = cmpGroups.find(g => g.id === gid);
+  if (!g || g.options.length <= 2) return; // keep minimum 2
+  g.options = g.options.filter(o => o.id !== oid);
+  renderCompare();
+}
+
+function parseQtyUnit(str) {
+  const m = (str || '').trim().match(/^([\d.]+)\s*([a-zA-Z]*)/);
+  return m ? { qty: parseFloat(m[1]), unit: m[2] || 'unit' } : { qty: NaN, unit: 'unit' };
+}
+
+function computeGroup(gid) {
+  const g = cmpGroups.find(g => g.id === gid);
+  if (!g) return;
+  // Read current DOM values
+  const vals = g.options.map(o => {
+    const price = parseFloat((document.getElementById('cp-' + o.id) || {}).value || '');
+    const { qty, unit } = parseQtyUnit((document.getElementById('cq-' + o.id) || {}).value || '');
+    const ppu = (isNaN(price) || isNaN(qty) || qty <= 0) ? NaN : price / qty;
+    return { id: o.id, price, qty, unit, ppu };
+  });
+
+  const valid = vals.filter(v => !isNaN(v.ppu));
+  if (valid.length < 2) {
+    // clear highlights & winner label
+    vals.forEach((v, i) => {
+      const th = document.getElementById('cth-' + v.id);
+      const tdP = document.getElementById('ctdP-' + v.id);
+      const tdQ = document.getElementById('ctdQ-' + v.id);
+      const tdR = document.getElementById('ctdR-' + v.id);
+      [th, tdP, tdQ, tdR].forEach(el => el && el.classList.remove('col-win'));
+      const ru = document.getElementById('cru-' + v.id);
+      if (ru) ru.innerHTML = '—';
+    });
+    const wl = document.getElementById('cwl-' + gid);
+    if (wl) wl.innerHTML = 'Enter price + qty to compare';
+    return;
+  }
+
+  const minPpu = Math.min(...valid.map(v => v.ppu));
+  const winner = valid.find(v => v.ppu === minPpu);
+  const unit = valid.find(v => v.unit !== 'unit')?.unit || 'unit';
+
+  vals.forEach(v => {
+    const isWin = !isNaN(v.ppu) && v.ppu === minPpu;
+    const th   = document.getElementById('cth-' + v.id);
+    const tdP  = document.getElementById('ctdP-' + v.id);
+    const tdQ  = document.getElementById('ctdQ-' + v.id);
+    const tdR  = document.getElementById('ctdR-' + v.id);
+    [th, tdP, tdQ, tdR].forEach(el => {
+      if (!el) return;
+      el.classList.toggle('col-win', isWin);
+    });
+    const ru = document.getElementById('cru-' + v.id);
+    if (ru) {
+      if (isNaN(v.ppu)) { ru.innerHTML = '—'; }
+      else {
+        const savings = valid.length > 1 ? ((Math.max(...valid.map(x => x.ppu)) - v.ppu) / Math.max(...valid.map(x => x.ppu)) * 100) : 0;
+        ru.innerHTML = `<span class="per-unit${isWin ? ' best' : ''}">$${v.ppu.toFixed(4)}/${unit}${isWin && valid.length > 1 ? ' 🏆' : ''}</span>`;
+      }
+    }
+  });
+
+  const wl = document.getElementById('cwl-' + gid);
+  if (wl && winner) {
+    const idx = g.options.findIndex(o => o.id === winner.id) + 1;
+    const savings = valid.length > 1
+      ? ((Math.max(...valid.map(v => v.ppu)) - minPpu) / Math.max(...valid.map(v => v.ppu)) * 100).toFixed(0)
+      : 0;
+    wl.innerHTML = `Best: <span>Option ${idx} — ${savings}% cheaper/${unit}</span>`;
+  }
+}
+
+function renderCompare() {
+  const container = document.getElementById('cmp-groups');
+  if (cmpGroups.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⚖️</div>No comparisons yet.<br>Click the button below to start.</div>';
+    return;
+  }
+
+  container.innerHTML = cmpGroups.map((g, gi) => {
+    const optCols = g.options.map((o, oi) => `<th id="cth-${o.id}">Option ${oi + 1}${g.options.length > 2 ? `<button onclick="removeOption(${g.id},${o.id})" style="margin-left:6px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;" title="Remove">✕</button>` : ''}</th>`).join('');
+    const priceRow = g.options.map(o => `<td id="ctdP-${o.id}"><input id="cp-${o.id}" type="number" placeholder="$0.00" min="0" step="0.01" oninput="computeGroup(${g.id})"></td>`).join('');
+    const qtyRow   = g.options.map(o => `<td id="ctdQ-${o.id}"><input id="cq-${o.id}" type="text" placeholder="e.g. 500g" oninput="computeGroup(${g.id})"></td>`).join('');
+    const resRow   = g.options.map(o => `<td id="ctdR-${o.id}"><span id="cru-${o.id}" class="per-unit">—</span></td>`).join('');
+
+    return `<div class="cmp-group">
+      <div class="cmp-group-header">
+        <span class="cmp-group-title">Comparison ${gi + 1}</span>
+        <button class="cmp-del-group-btn" onclick="removeCmpGroup(${g.id})">✕</button>
+      </div>
+      <div class="cmp-table-wrap">
+        <table class="cmp-table">
+          <thead><tr><th class="label-col"></th>${optCols}</tr></thead>
+          <tbody>
+            <tr><td class="label-col">Price ($)</td>${priceRow}</tr>
+            <tr><td class="label-col">Qty + unit</td>${qtyRow}</tr>
+            <tr><td class="label-col">Per unit</td>${resRow}</tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cmp-footer">
+        <button class="add-option-btn" onclick="addOption(${g.id})">+ Add option</button>
+        <span class="winner-label" id="cwl-${g.id}">Enter price + qty to compare</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+render();
+renderCompare();
+addCmpGroup();
+</script>
+</body>
+</html>
