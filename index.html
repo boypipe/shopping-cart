@@ -363,7 +363,11 @@ function addCmpGroup() {
 
   cmpGroups.push({
     id: gid,
-    options: [{ id: o1 }, { id: o2 }, { id: o3 }]
+    options: [
+      { id: o1, name: 'O1' },
+      { id: o2, name: 'O2' },
+      { id: o3, name: 'O3' }
+    ]
   });
 
   renderCompare();
@@ -378,8 +382,10 @@ function removeCmpGroup(gid) {
 function preserveCompareValues() {
   cmpGroups.forEach(g => {
     g.options.forEach(o => {
+      o.name = document.getElementById('cn-' + o.id)?.value || o.name || '';
       o.price = document.getElementById('cp-' + o.id)?.value || '';
       o.qtyunit = document.getElementById('cq-' + o.id)?.value || '';
+      o.unit = document.getElementById('cu-' + o.id)?.value || o.unit || '';
     });
   });
 }
@@ -394,8 +400,10 @@ function addOption(gid) {
 
   g.options.push({
     id: oid,
+    name: 'O' + g.options.length,
     price: '',
-    qtyunit: ''
+    qtyunit: '',
+    unit: ''
   });
 
   renderCompare();
@@ -424,7 +432,7 @@ function computeGroup(gid) {
   const vals = g.options.map(o => {
     const price = parseFloat((document.getElementById('cp-' + o.id) || {}).value || '');
     const qty = parseFloat(  (document.getElementById('cq-' + o.id) || {}).value || '');
-    const unit = 'unit';
+    const unit = (document.getElementById('cu-' + o.id)?.value || '').trim() || 'unit';
     const ppu = (isNaN(price) || isNaN(qty) || qty <= 0) ? NaN : price / qty;
     return { id: o.id, price, qty, unit, ppu };
   });
@@ -465,18 +473,21 @@ function computeGroup(gid) {
       if (isNaN(v.ppu)) { ru.innerHTML = '—'; }
       else {
         const savings = valid.length > 1 ? ((Math.max(...valid.map(x => x.ppu)) - v.ppu) / Math.max(...valid.map(x => x.ppu)) * 100) : 0;
-        ru.innerHTML = `<span class="per-unit${isWin ? ' best' : ''}">$${v.ppu.toFixed(4)}/${unit}${isWin && valid.length > 1 ? ' 🏆' : ''}</span>`;
+        ru.innerHTML = `<span class="per-unit${isWin ? ' best' : ''}">$${v.ppu.toFixed(3)}/${unit}${isWin && valid.length > 1 ? ' 🏆' : ''}</span>`;
       }
     }
   });
 
   const wl = document.getElementById('cwl-' + gid);
   if (wl && winner) {
-    const idx = g.options.findIndex(o => o.id === winner.id) + 1;
+    const winnerOption = g.options.find(o => o.id === winner.id);
+    const winnerName = document.getElementById('cn-' + winner.id)?.value?.trim()
+      || winnerOption?.name
+      || ('Option ' + (g.options.findIndex(o => o.id === winner.id) + 1));
     const savings = valid.length > 1
       ? ((Math.max(...valid.map(v => v.ppu)) - minPpu) / Math.max(...valid.map(v => v.ppu)) * 100).toFixed(0)
       : 0;
-    wl.innerHTML = `Best: <span>Option ${idx} — ${savings}% cheaper/${unit}</span>`;
+    wl.innerHTML = `Best: <span>${winnerName} — ${savings}% cheaper/${unit}</span>`;
   }
 }
 
@@ -488,9 +499,10 @@ function renderCompare() {
   }
 
   container.innerHTML = cmpGroups.map((g, gi) => {
-    const optCols = g.options.map((o, oi) => `<th id="cth-${o.id}">O${oi + 1}${g.options.length > 2 ? `<button onclick="removeOption(${g.id},${o.id})" style="margin-left:6px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;" title="Remove">✕</button>` : ''}</th>`).join('');
+    const optCols = g.options.map((o, oi) => `<th id="cth-${o.id}"><input id="cn-${o.id}" type="text" value="${o.name || ('O' + (oi + 1))}" placeholder="O${oi + 1}" style="width:70px;font-size:12px;">${g.options.length > 2 ? `<button onclick="removeOption(${g.id},${o.id})" style="margin-left:6px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;" title="Remove">✕</button>` : ''}</th>`).join('');
     const priceRow = g.options.map(o => `<td id="ctdP-${o.id}"><input  id="cp-${o.id}"  type="number"  value="${o.price || ''}" placeholder="$0.00" min="0" step="0.01" oninput="computeGroup(${g.id})"></td>`).join('');
-    const qtyRow = g.options.map(o =>  `<td id="ctdQ-${o.id}">    <input id="cq-${o.id}" type="number" value="${o.qtyunit || ''}" placeholder="Qty" min="0" step="0.01" oninput="computeGroup(${g.id})">  </td>`).join('');
+    const qtyRow = g.options.map(o =>  `<td id="ctdQ-${o.id}"><input id="cq-${o.id}" type="number" value="${o.qtyunit || ''}" placeholder="Qty" min="0" step="0.01" oninput="computeGroup(${g.id})"></td>`).join('');
+    const unitRow = g.options.map(o => `<td><input id="cu-${o.id}" type="text" value="${o.unit || ''}" placeholder="ml/g/pcs" oninput="computeGroup(${g.id})"></td>`).join('');
     const resRow   = g.options.map(o => `<td id="ctdR-${o.id}"><span id="cru-${o.id}" class="per-unit">—</span></td>`).join('');
 
     return `<div class="cmp-group">
@@ -504,6 +516,7 @@ function renderCompare() {
           <tbody>
             <tr><td class="label-col">$</td>${priceRow}</tr>
             <tr><td class="label-col">Qty</td>${qtyRow}</tr>
+            <tr><td class="label-col">Unit</td>${unitRow}</tr>
             <tr><td class="label-col">Unit $</td>${resRow}</tr>
           </tbody>
         </table>
@@ -538,7 +551,7 @@ addCmpGroup();
 </div>
 
 <script>
-fetch('https://countapi.mileshilliard.com/api/v1/hit/cart-calculator')
+fetch('https://countapi.mileshilliard.com/api/v1/hit/boypipe-cart-calculator')
   .then(res => res.json())
   .then(data => {
     document.getElementById('views').textContent = data.value.toLocaleString();
