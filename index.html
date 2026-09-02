@@ -75,8 +75,36 @@
   .item-emoji { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
   .item-name { flex: 1; font-size: 18px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-qty { font-size: 12px; color: var(--text3); font-family: var(--mono); flex-shrink: 0; }
-  .item-price { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--text2); flex-shrink: 0; }
+  .item-price {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text2);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .calc-small {
+    font-size: 11px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .calc-total {
+    font-size: 18px;
+    font-weight: 500;
+    text-decoration: none;
+  }
   .item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  @media (max-width: 500px) {
+    .item-price { font-size: 16px; }
+    .calc-small { font-size: 10px; }
+    .calc-total { font-size: 16px; }
+    .item-main { gap: 6px; padding: 10px 10px; }
+    .item-name { font-size: 16px; }
+  }
   .icon-btn { background: none; border: none; color: var(--text3); cursor: pointer; padding: 3px 5px; font-size: 14px; line-height: 1; border-radius: var(--r-sm); transition: color 0.15s, background 0.15s; }
   .icon-btn:hover { background: var(--surface2); color: var(--text); }
   .icon-btn.del:hover { color: var(--danger); background: var(--danger-bg); }
@@ -342,8 +370,10 @@ function render() {
         <input type="checkbox" class="item-check" ${item.completed ? 'checked' : ''} onclick="toggleCompleted(${item.id})">
         <span class="item-emoji" id="emoji-disp-${item.id}">${item.emoji}</span>
         <span class="item-name">${escHtml(item.name)}</span>
-        <span class="item-qty">×${item.qty}</span>
-        <span class="item-price">${fmt(line)}</span>
+        <span class="item-price">
+          <span class="calc-small">${fmt(item.price)} × ${item.qty}</span>
+          <span class="calc-total"> = ${fmt(line)}</span>
+        </span>
         <div class="item-actions">
           <button class="icon-btn" onclick="toggleEdit(${item.id})" title="Edit">✏️</button>
           <button class="icon-btn del" onclick="removeItem(${item.id})" title="Remove">✕</button>
@@ -537,7 +567,9 @@ function renderCompare() {
         </table>
       </div>
       <div class="cmp-footer">
-        <button class="add-option-btn" onclick="addOption(${g.id})">+ Add option</button>
+        <button class="add-option-btn" onclick="addOption(${g.id})">
+        <strong>+ Add option</strong>
+      </button>
         <span class="winner-label" id="cwl-${g.id}">Enter price + qty to compare</span>
       </div>
     </div>`;
@@ -574,7 +606,7 @@ addCmpGroup();
 </div>
 
 <script>
-fetch('https://countapi.mileshilliard.com/api/v1/hit/boypipe-cart-calculator')
+fetch('https://countapi.mileshilliard.com/api/v1/hit/boypipe-cart-calculatorv1')
   .then(res => res.json())
   .then(data => {
     document.getElementById('views').textContent = data.value.toLocaleString();
